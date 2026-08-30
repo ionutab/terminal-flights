@@ -1,6 +1,6 @@
 # ✈️ Quick Plane Prices
 
-A fast and lightweight CLI tool to scan flight prices between two airports over a customizable duration window (`1m` for 1 month, `2m` for 2 months, `3m`, `1w`, `30d`, etc.) and output a clean Markdown report with the cheapest tickets, day of week, day of year, prices in EUR, and direct booking links.
+A fast and lightweight CLI tool to scan flight prices between two airports over a customizable duration window (`1m` for 1 month, `2m` for 2 months, `3m`, `1w`, `30d`, etc.) and output a clean Markdown report with the cheapest tickets, day of week, day of year, prices in EUR, multi-language support, and direct booking links.
 
 ---
 
@@ -17,13 +17,16 @@ You can run the CLI tool directly from this directory:
 # Scan 2 months into the future
 ./bin/plane-prices.js BER BCN 2m
 
+# Output in German (de), Spanish (es), French (fr), etc.
+./bin/plane-prices.js BER BCN 1m --language de
+
 # Or use the global command (if npm linked)
 plane-prices BER BCN 1m
 ```
 
 ### 2. Interactive Mode
 
-Run without arguments to start the interactive wizard:
+Run without arguments to start the interactive wizard (includes language selection):
 
 ```bash
 plane-prices
@@ -55,32 +58,39 @@ plane-prices <origin> <destination> [duration]
 
 ### Examples
 
-#### 1. Scan cheapest flights for next month
+#### 1. Scan cheapest flights for next month (English)
 ```bash
 plane-prices BER BCN 1m
 ```
 
-#### 2. Scan 2 months and save report to a Markdown file
+#### 2. Output report in German (`de`), Spanish (`es`), French (`fr`), Polish (`pl`), etc.
 ```bash
-plane-prices BER BCN 2m -o cheap_flights.md
+plane-prices BER BCN 1m --language de
+plane-prices MAD CDG 1m --language es
+plane-prices CDG FCO 1m --language fr
 ```
 
-#### 3. Search Round-Trip flights (e.g. 7-day trip duration)
+#### 3. Scan 2 months and save report to a Markdown file
+```bash
+plane-prices BER BCN 2m --language de -o cheap_flights_de.md
+```
+
+#### 4. Search Round-Trip flights (e.g. 7-day trip duration)
 ```bash
 plane-prices MAD CDG 1m --round-trip --trip-length 7
 ```
 
-#### 4. Direct / Non-stop flights only
+#### 5. Direct / Non-stop flights only
 ```bash
 plane-prices LHR JFK 2m --direct
 ```
 
-#### 5. Sort calendar table by price (cheapest first) and show top 15
+#### 6. Sort calendar table by price (cheapest first) and show top 15
 ```bash
 plane-prices BER BCN 1m --sort price --top 15
 ```
 
-#### 6. Pipe raw Markdown output to another tool
+#### 7. Pipe raw Markdown output to another tool
 ```bash
 plane-prices BER BCN 1m --raw > report.md
 ```
@@ -95,6 +105,7 @@ plane-prices BER BCN 1m --raw > report.md
 | `--to <iata>` | `-t` | Destination airport IATA code or city name | Required |
 | `--duration <window>` | `-d` | Scan window: `1m`, `2m`, `3m`, `30d`, `60d`, `1w` | `1m` |
 | `--start <date>` | `-s` | Start date in `YYYY-MM-DD` | Tomorrow |
+| `--lang, --language <code>` | | Output language code: `en`, `de`, `es`, `fr`, `it`, `pt`, `pl`, `nl`, `ru`, `uk`, etc. | `en` |
 | `--round-trip` | `-r` | Search round-trip ticket prices | `false` (One-Way) |
 | `--trip-length <days>` | `-l` | Round-trip duration in days | `7` |
 | `--direct` | | Filter for direct (non-stop) flights only | `false` |
@@ -108,18 +119,36 @@ plane-prices BER BCN 1m --raw > report.md
 
 ---
 
+## 🌐 Supported Languages
+
+The tool provides built-in localized report headers, summaries, ratings, table columns, and uses the standard `Intl` engine for native date and weekday names:
+
+* `en` – English (Default)
+* `de` – Deutsch (German)
+* `es` – Español (Spanish)
+* `fr` – Français (French)
+* `it` – Italiano (Italian)
+* `pt` – Português (Portuguese)
+* `pl` – Polski (Polish)
+* `nl` – Nederlands (Dutch)
+* `ru` – Русский (Russian)
+* `uk` – Українська (Ukrainian)
+* *Any valid BCP-47 locale tag will also localize day names, dates, and currency formatting!*
+
+---
+
 ## 📊 Markdown Output Features
 
 The generated Markdown output includes:
 
 1. **Route & Search Metadata**: Origin airport, destination, search date window, and currency.
 2. **Executive Summary**:
-   - 🏆 **Cheapest Ticket**: Price, Date, Day of week, Day of year, and direct booking link.
+   - 🏆 **Cheapest Ticket**: Price, Date, Day of week (localized), Day of year, and direct booking link.
    - 🏷️ **Price Range**: Min to Max price in EUR.
    - 📈 **Average & Median Prices**.
    - 📅 **Best Day of Week to Fly**: Identifies the statistically cheapest day of the week.
 3. **Top Cheapest Dates Table**: Ranked deals with date, day of week, day of year, price in EUR, and percentage saved vs. average.
-4. **Day of Week Price Analysis**: Average and minimum prices broken down from Monday to Sunday.
+4. **Day of Week Price Analysis**: Average and minimum prices broken down from Monday to Sunday in target language.
 5. **Complete Date-by-Date Price Calendar**: Full breakdown of all dates with Deal Rating badges (`🟢 Great Deal`, `🟡 Average`, `🔴 Expensive`) and direct deep links to Google Flights.
 
 ---
@@ -137,8 +166,10 @@ quick-plane-prices/
 │   │   └── airports.js       # Airport IATA & city lookup database
 │   ├── formatters/
 │   │   └── markdown.js       # Markdown report builder & statistical analyzer
+│   ├── i18n/
+│   │   └── translations.js   # Multi-language dictionary & localization
 │   └── utils/
-│       └── dates.js          # Duration parser, date math, day of year utils
+│       └── dates.js          # Duration parser, date math, localized date utils
 ├── test/
 │   └── test.js               # Automated test suite
 ├── index.js                  # Module entrypoint

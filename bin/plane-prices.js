@@ -34,6 +34,7 @@ program
   .option("-l, --trip-length <days>", "Round-trip duration in days", "7")
   .option("--direct", "Direct flights only", false)
   .option("-c, --currency <code>", "Currency code (default: EUR)", "EUR")
+  .option("--lang, --language <code>", "Output language code (e.g. en, de, es, fr, it, pt, pl, nl, ru, uk)", "en")
   .option("-o, --output <file>", "Save markdown output to a file")
   .option("--top <number>", "Number of top cheapest dates to highlight", "10")
   .option("--sort <field>", "Sort table by 'date' or 'price'", "date")
@@ -78,6 +79,22 @@ async function runInteractive() {
     });
   }
 
+  const langChoice = await select({
+    message: "Output language:",
+    choices: [
+      { name: "English (en)", value: "en" },
+      { name: "German / Deutsch (de)", value: "de" },
+      { name: "Spanish / Español (es)", value: "es" },
+      { name: "French / Français (fr)", value: "fr" },
+      { name: "Italian / Italiano (it)", value: "it" },
+      { name: "Portuguese / Português (pt)", value: "pt" },
+      { name: "Polish / Polski (pl)", value: "pl" },
+      { name: "Dutch / Nederlands (nl)", value: "nl" },
+      { name: "Russian / Русский (ru)", value: "ru" },
+      { name: "Ukrainian / Українська (uk)", value: "uk" }
+    ]
+  });
+
   const tripTypeChoice = await select({
     message: "Trip type:",
     choices: [
@@ -111,7 +128,7 @@ async function runInteractive() {
   if (saveFile) {
     outputFile = await input({
       message: "File path:",
-      default: `prices_${originInput.trim().toUpperCase()}_${destInput.trim().toUpperCase()}.md`
+      default: `prices_${originInput.trim().toUpperCase()}_${destInput.trim().toUpperCase()}_${langChoice}.md`
     });
   }
 
@@ -119,6 +136,7 @@ async function runInteractive() {
     origin: originInput,
     destination: destInput,
     duration: durationVal,
+    language: langChoice,
     roundTrip,
     tripLength,
     directOnly,
@@ -136,6 +154,7 @@ async function main() {
     let tripLength = parseInt(options.tripLength, 10) || 7;
     let directOnly = options.direct;
     let currency = options.currency || "EUR";
+    let language = options.language || options.lang || "en";
     let outputFile = options.output;
     let isInteractive = options.interactive;
 
@@ -146,6 +165,7 @@ async function main() {
       originStr = answers.origin;
       destStr = answers.destination;
       durationStr = answers.duration;
+      language = answers.language;
       roundTrip = answers.roundTrip;
       tripLength = answers.tripLength;
       directOnly = answers.directOnly;
@@ -159,6 +179,7 @@ async function main() {
       console.log(chalk.yellow("\nUsage:"));
       console.log("  plane-prices <origin> <destination> [duration]");
       console.log("  plane-prices BER BCN 1m");
+      console.log("  plane-prices BER BCN 2m --language de");
       console.log("  plane-prices BER BCN 2m --round-trip -l 7");
       console.log("  plane-prices --interactive");
       process.exit(1);
@@ -184,7 +205,7 @@ async function main() {
       const routeLabel = `${formatAirportName(originResolved.code)} ➔ ${formatAirportName(destResolved.code)}`;
       const tripLabel = roundTrip ? `Round-trip (${tripLength}d)` : "One-way";
       console.log(chalk.bold(`\n🛫 Route: ${chalk.cyan(routeLabel)}`));
-      console.log(chalk.dim(`📅 Window: ${parsedDur.label} | ${tripLabel} | Currency: ${currency}\n`));
+      console.log(chalk.dim(`📅 Window: ${parsedDur.label} | ${tripLabel} | Currency: ${currency} | Lang: ${language}\n`));
 
       spinner = ora(`Fetching live flight prices from Google Flights...`).start();
     }
@@ -198,6 +219,7 @@ async function main() {
       tripDurationDays: tripLength,
       directOnly,
       currency,
+      language,
       onProgress: (p) => {
         if (spinner) {
           spinner.text = `Fetching prices: chunk ${p.completedChunks}/${p.totalChunks}...`;
@@ -213,7 +235,7 @@ async function main() {
     const topN = parseInt(options.top, 10) || 10;
     const sortBy = options.sort === "price" ? "price" : "date";
 
-    const markdownOutput = generateMarkdownReport(results, { topN, sortBy });
+    const markdownOutput = generateMarkdownReport(results, { topN, sortBy, language });
 
     // Save to file if requested
     if (outputFile) {
@@ -226,11 +248,12 @@ async function main() {
 
     // Display summary in terminal if interactive
     if (!isRaw) {
-      const stats = calculateStatistics(results.flights);
+      const stats = calculateStatistics(results.flights, language);
       const currSymbol = currency === "EUR" ? "€" : `${currency} `;
+      const bestDayName = stats.cheapestFlight ? stats.cheapestFlight.dayOfWeek : "";
 
       console.log(chalk.bold("\n" + "=".repeat(60)));
-      console.log(chalk.bold.green(`  🏆 CHEAPEST TICKET: ${chalk.yellow(currSymbol + stats.cheapestFlight.price)} on ${stats.cheapestFlight.dayOfWeek}, ${stats.cheapestFlight.date}`));
+      console.log(chalk.bold.green(`  🏆 CHEAPEST TICKET: ${chalk.yellow(currSymbol + stats.cheapestFlight.price)} on ${bestDayName}, ${stats.cheapestFlight.date}`));
       console.log(chalk.dim(`  📊 Average: ${currSymbol}${stats.avg}  |  Median: ${currSymbol}${stats.median}  |  Range: ${currSymbol}${stats.min} – ${currSymbol}${stats.max}`));
       if (stats.bestDay) {
         console.log(chalk.dim(`  📅 Best Day of Week: ${chalk.cyan(stats.bestDay.day)} (avg ${currSymbol}${stats.bestDay.avg})`));

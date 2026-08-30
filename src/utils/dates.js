@@ -2,46 +2,6 @@
  * Date calculation and parsing utilities
  */
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday"
-];
-
-const MONTH_NAMES = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December"
-];
-
-const MONTH_SHORT = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec"
-];
-
 /**
  * Format a Date object to YYYY-MM-DD
  * @param {Date} date
@@ -89,31 +49,59 @@ export function addMonths(date, months) {
 }
 
 /**
- * Get day name from date string or Date
+ * Get day of week name from date string or Date in given locale
  * @param {string|Date} d
+ * @param {string} [locale='en']
  * @returns {string}
  */
-export function getDayOfWeek(d) {
+export function getDayOfWeek(d, locale = "en") {
   const date = typeof d === "string" ? parseIsoDate(d) : d;
-  return DAY_NAMES[date.getUTCDay()];
+  try {
+    const formatter = new Intl.DateTimeFormat(locale, { weekday: "long", timeZone: "UTC" });
+    const name = formatter.format(date);
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  } catch {
+    const fallbackDays = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return fallbackDays[date.getUTCDay()];
+  }
 }
 
 /**
- * Format date for friendly display (e.g. "Fri, 18 Sep 2026")
+ * Get day index (0 = Sunday, 1 = Monday, ... 6 = Saturday)
  * @param {string|Date} d
- * @returns {string}
+ * @returns {number}
  */
-export function formatDisplayDate(d) {
+export function getDayOfWeekIndex(d) {
   const date = typeof d === "string" ? parseIsoDate(d) : d;
-  const dayName = DAY_NAMES[date.getUTCDay()].slice(0, 3);
-  const dayNum = String(date.getUTCDate()).padStart(2, "0");
-  const monthName = MONTH_SHORT[date.getUTCMonth()];
-  const year = date.getUTCFullYear();
-  return `${dayName}, ${dayNum} ${monthName} ${year}`;
+  return date.getUTCDay();
 }
 
 /**
- * Calculate day of year (e.g. "Day 261 of 2026")
+ * Format date for friendly display in given locale (e.g. "18 Sep 2026")
+ * @param {string|Date} d
+ * @param {string} [locale='en']
+ * @returns {string}
+ */
+export function formatDisplayDate(d, locale = "en") {
+  const date = typeof d === "string" ? parseIsoDate(d) : d;
+  try {
+    const formatter = new Intl.DateTimeFormat(locale, {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC"
+    });
+    return formatter.format(date);
+  } catch {
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    const m = months[date.getUTCMonth()];
+    return `${day} ${m} ${date.getUTCFullYear()}`;
+  }
+}
+
+/**
+ * Calculate day of year (e.g. 261 for 2026-09-18)
  * @param {string|Date} d
  * @returns {number}
  */
@@ -165,7 +153,6 @@ export function parseDuration(input) {
   const dayMatch = str.match(/^(\d+)\s*(?:d|day|days)?$/);
   if (dayMatch) {
     const val = parseInt(dayMatch[1], 10);
-    // If small number <= 12 and no unit specified, assume months
     if (!str.endsWith("d") && !str.endsWith("day") && !str.endsWith("days") && val <= 12) {
       const days = Math.round(val * 30.5);
       return {

@@ -1,16 +1,18 @@
 /**
- * Markdown Formatter for Flight Prices
+ * Markdown Formatter for Flight Prices with Multi-Language Support
  */
 
 import { formatAirportName } from "../data/airports.js";
-import { formatDisplayDate } from "../utils/dates.js";
+import { formatDisplayDate, getDayOfWeek, getDayOfWeekIndex } from "../utils/dates.js";
+import { getTranslations, t } from "../i18n/translations.js";
 
 /**
  * Calculates statistical metrics from flight results
  * @param {Array<{ price: number, dayOfWeek: string, date: string }>} flights
+ * @param {string} [language='en']
  * @returns {object}
  */
-export function calculateStatistics(flights) {
+export function calculateStatistics(flights, language = "en") {
   if (!flights || flights.length === 0) {
     return {
       count: 0,
@@ -19,7 +21,8 @@ export function calculateStatistics(flights) {
       avg: 0,
       median: 0,
       cheapestFlight: null,
-      dayStats: {}
+      dayAnalysis: [],
+      bestDay: null
     };
   }
 
@@ -34,39 +37,46 @@ export function calculateStatistics(flights) {
   // Cheapest flight
   const cheapestFlight = flights.reduce((minF, f) => (!minF || f.price < minF.price ? f : minF), null);
 
-  // Day of week aggregation
-  const dayOrder = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  // Day of week index aggregation (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
+  // Re-order starting from Monday (1..6, 0)
+  const mondayFirstIndices = [1, 2, 3, 4, 5, 6, 0];
   const dayStats = {};
-  for (const d of dayOrder) {
-    dayStats[d] = { count: 0, total: 0, min: Infinity, minFlight: null };
+  for (const idx of mondayFirstIndices) {
+    dayStats[idx] = { count: 0, total: 0, min: Infinity, minFlight: null };
   }
 
   for (const f of flights) {
-    if (dayStats[f.dayOfWeek]) {
-      dayStats[f.dayOfWeek].count++;
-      dayStats[f.dayOfWeek].total += f.price;
-      if (f.price < dayStats[f.dayOfWeek].min) {
-        dayStats[f.dayOfWeek].min = f.price;
-        dayStats[f.dayOfWeek].minFlight = f;
+    const dayIdx = getDayOfWeekIndex(f.date);
+    if (dayStats[dayIdx]) {
+      dayStats[dayIdx].count++;
+      dayStats[dayIdx].total += f.price;
+      if (f.price < dayStats[dayIdx].min) {
+        dayStats[dayIdx].min = f.price;
+        dayStats[dayIdx].minFlight = f;
       }
     }
   }
 
-  const dayAnalysis = dayOrder
-    .filter((d) => dayStats[d].count > 0)
-    .map((d) => {
-      const count = dayStats[d].count;
-      const dayAvg = Math.round(dayStats[d].total / count);
+  const dayAnalysis = mondayFirstIndices
+    .filter((idx) => dayStats[idx].count > 0)
+    .map((idx) => {
+      const count = dayStats[idx].count;
+      const dayAvg = Math.round(dayStats[idx].total / count);
+      // Sample date for this day of week index to get localized name
+      const sampleDate = dayStats[idx].minFlight ? dayStats[idx].minFlight.date : "2026-09-07";
+      const localizedDayName = getDayOfWeek(sampleDate, language);
+
       return {
-        day: d,
+        dayIndex: idx,
+        day: localizedDayName,
         avg: dayAvg,
-        min: dayStats[d].min,
+        min: dayStats[idx].min,
         count,
-        minFlight: dayStats[d].minFlight
+        minFlight: dayStats[idx].minFlight
       };
     });
 
-  // Best day of week
+  // Best day of week (lowest average price)
   const bestDay = [...dayAnalysis].sort((a, b) => a.avg - b.avg)[0] || null;
 
   return {
@@ -82,14 +92,16 @@ export function calculateStatistics(flights) {
 }
 
 /**
- * Generates comprehensive GitHub-Flavored Markdown report
+ * Generates comprehensive GitHub-Flavored Markdown report in the specified language
  * @param {object} data
  * @param {object} [options]
  * @param {number} [options.topN=10]
  * @param {'date'|'price'} [options.sortBy='date']
+ * @param {string} [options.language='en']
  * @returns {string}
  */
 export function generateMarkdownReport(data, options = {}) {
+  const language = options.language || data.language || "en";
   const { topN = 10, sortBy = "date" } = options;
   const {
     origin,
@@ -103,11 +115,13 @@ export function generateMarkdownReport(data, options = {}) {
     flights = []
   } = data;
 
+  const i18n = getTranslations(language);
+
   if (flights.length === 0) {
-    return `# ✈️ Flight Price Report: ${origin} ➔ ${destination}\n\n*No flight prices found for this route and date range.*`;
+    return `# ✈️ ${i18n.reportTitle}: ${origin} ➔ ${destination}\n\n*${i18n.noFlightsFound}*`;
   }
 
-  const stats = calculateStatistics(flights);
+  const stats = calculateStatistics(flights, language);
   const originDisplay = formatAirportName(origin);
   const destDisplay = formatAirportName(destination);
   const currSymbol = currency === "EUR" ? "€" : currency === "USD" ? "$" : currency === "GBP" ? "£" : `${currency} `;
@@ -117,9 +131,9 @@ export function generateMarkdownReport(data, options = {}) {
   const p75 = stats.median + (stats.max - stats.median) * 0.5;
 
   const getDealBadge = (price) => {
-    if (price <= p25) return "🟢 Great Deal";
-    if (price <= p75) return "🟡 Average";
-    return "🔴 Expensive";
+    if (price <= p25) return i18n.ratingGreat;
+    if (price <= p75) return i18n.ratingAverage;
+    return i18n.ratingExpensive;
   };
 
   // Top cheapest flights
@@ -139,78 +153,137 @@ export function generateMarkdownReport(data, options = {}) {
   const lines = [];
 
   // Title
-  lines.push(`# ✈️ Flight Prices: ${originDisplay} ➔ ${destDisplay}`);
+  lines.push(`# ✈️ ${i18n.reportTitle}: ${originDisplay} ➔ ${destDisplay}`);
   lines.push("");
 
   // Metadata Table
-  lines.push("| Parameter | Details |");
+  lines.push(`| ${i18n.parameter} | ${i18n.details} |`);
   lines.push("| :--- | :--- |");
-  lines.push(`| **Route** | \`${origin}\` (${originDisplay}) ➔ \`${destination}\` (${destDisplay}) |`);
-  lines.push(`| **Trip Type** | ${roundTrip ? `Round-Trip (${tripDurationDays} days)` : "One-Way"} |`);
-  lines.push(`| **Flight Preference** | ${directOnly ? "Direct / Non-stop only" : "All flights"} |`);
-  lines.push(`| **Search Range** | \`${startDate}\` to \`${endDate}\` (${flights.length} days scanned) |`);
-  lines.push(`| **Currency** | ${currency} (${currSymbol.trim()}) |`);
-  lines.push(`| **Report Generated** | ${now} |`);
+  lines.push(`| **${i18n.route}** | \`${origin}\` (${originDisplay}) ➔ \`${destination}\` (${destDisplay}) |`);
+  lines.push(`| **${i18n.tripType}** | ${roundTrip ? t(i18n.roundTrip, { days: tripDurationDays }) : i18n.oneWay} |`);
+  lines.push(`| **${i18n.flightPreference}** | ${directOnly ? i18n.directOnly : i18n.allFlights} |`);
+  lines.push(`| **${i18n.searchRange}** | \`${startDate}\` - \`${endDate}\` (${t(i18n.daysScanned, { count: flights.length })}) |`);
+  lines.push(`| **${i18n.currency}** | ${currency} (${currSymbol.trim()}) |`);
+  lines.push(`| **${i18n.reportGenerated}** | ${now} |`);
   lines.push("");
 
   // Key Findings & Summary
-  lines.push("## 📊 Summary & Key Insights");
+  lines.push(`## ${i18n.summaryTitle}`);
   lines.push("");
-  lines.push(`- 🏆 **Cheapest Ticket:** **${currSymbol}${stats.cheapestFlight.price} ${currency}** on **${stats.cheapestFlight.dayOfWeek}, ${stats.cheapestFlight.date}** (Day ${stats.cheapestFlight.dayOfYear} of year) — [Book on Google Flights](${stats.cheapestFlight.bookingUrl})`);
-  lines.push(`- 🏷️ **Price Range:** **${currSymbol}${stats.min}** to **${currSymbol}${stats.max} ${currency}**`);
-  lines.push(`- 📈 **Average Price:** **${currSymbol}${stats.avg} ${currency}** (Median: **${currSymbol}${stats.median} ${currency}**)`);
+
+  const cheapestDay = getDayOfWeek(stats.cheapestFlight.date, language);
+  lines.push(
+    "- " +
+    t(i18n.cheapestTicket, {
+      price: `${currSymbol}${stats.cheapestFlight.price} ${currency}`,
+      dayOfWeek: cheapestDay,
+      date: stats.cheapestFlight.date,
+      url: stats.cheapestFlight.bookingUrl
+    })
+  );
+
+  lines.push(
+    "- " +
+    t(i18n.priceRange, {
+      min: `${currSymbol}${stats.min}`,
+      max: `${currSymbol}${stats.max} ${currency}`
+    })
+  );
+
+  lines.push(
+    "- " +
+    t(i18n.averagePrice, {
+      avg: `${currSymbol}${stats.avg} ${currency}`,
+      median: `${currSymbol}${stats.median} ${currency}`
+    })
+  );
+
   if (stats.bestDay) {
-    lines.push(`- 📅 **Best Day to Fly:** **${stats.bestDay.day}** (average **${currSymbol}${stats.bestDay.avg} ${currency}**, lowest **${currSymbol}${stats.bestDay.min} ${currency}**)`);
+    lines.push(
+      "- " +
+      t(i18n.bestDayToFly, {
+        day: stats.bestDay.day,
+        avg: `${currSymbol}${stats.bestDay.avg} ${currency}`,
+        min: `${currSymbol}${stats.bestDay.min} ${currency}`
+      })
+    );
   }
   lines.push("");
 
   // Top Deals Table
-  lines.push(`## 🏆 Top ${Math.min(topN, flights.length)} Cheapest Dates`);
+  const topTitle = t(i18n.topDealsTitle, { count: Math.min(topN, flights.length) });
+  lines.push(`## ${topTitle}`);
   lines.push("");
-  lines.push("| Rank | Date | Day of Week | Day of Year | Price | Savings vs Avg | Booking Link |");
+  lines.push(
+    `| ${i18n.rank} | ${i18n.date} | ${i18n.dayOfWeek} | ${i18n.dayOfYear} | ${i18n.price} | ${i18n.savingsVsAvg} | ${i18n.bookingLink} |`
+  );
   lines.push("| :---: | :--- | :--- | :---: | :---: | :---: | :--- |");
 
   topCheapest.forEach((f, idx) => {
     const rankEmoji = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
     const diff = stats.avg - f.price;
     const pct = stats.avg > 0 ? Math.round((diff / stats.avg) * 100) : 0;
-    const savingsStr = pct > 0 ? `🔥 -${pct}% (save ${currSymbol}${diff})` : "Average";
-    const dateFormatted = formatDisplayDate(f.date);
+    const savingsStr =
+      pct > 0
+        ? t(i18n.saveAmount, { pct, diff: `${currSymbol}${diff}` })
+        : i18n.averageBadge;
 
-    lines.push(`| ${rankEmoji} | **${f.date}** (${dateFormatted.split(", ")[1]}) | ${f.dayOfWeek} | Day ${f.dayOfYear} | **${currSymbol}${f.price} ${currency}** | ${savingsStr} | [View Flight ↗](${f.bookingUrl}) |`);
+    const dateFormatted = formatDisplayDate(f.date, language);
+    const dayName = getDayOfWeek(f.date, language);
+    const dayLabel = t(i18n.dayLabel);
+
+    lines.push(
+      `| ${rankEmoji} | **${f.date}** (${dateFormatted}) | ${dayName} | ${dayLabel} | **${currSymbol}${f.price} ${currency}** | ${savingsStr} | [${i18n.viewFlight}](${f.bookingUrl}) |`
+    );
   });
   lines.push("");
 
   // Day of Week Analysis
   if (stats.dayAnalysis && stats.dayAnalysis.length > 0) {
-    lines.push("## 🗓️ Day of the Week Price Analysis");
+    lines.push(`## ${i18n.dayAnalysisTitle}`);
     lines.push("");
-    lines.push("| Day of Week | Avg Price | Min Price | Cheapest Date Found | Flights | Trend |");
+    lines.push(
+      `| ${i18n.dayOfWeek} | ${i18n.avgPrice} | ${i18n.minPrice} | ${i18n.cheapestDateFound} | ${i18n.flights} | ${i18n.trend} |`
+    );
     lines.push("| :--- | :---: | :---: | :--- | :---: | :--- |");
 
     for (const d of stats.dayAnalysis) {
-      const trend = d.avg <= stats.avg ? "🟢 Cheap" : "🔴 Prickly";
+      const trend = d.avg <= stats.avg ? i18n.trendCheap : i18n.trendExpensive;
       const minDateStr = d.minFlight ? `${d.minFlight.date} (${currSymbol}${d.minFlight.price})` : "-";
-      lines.push(`| **${d.day}** | ${currSymbol}${d.avg} ${currency} | **${currSymbol}${d.min} ${currency}** | ${minDateStr} | ${d.count} | ${trend} |`);
+      lines.push(
+        `| **${d.day}** | ${currSymbol}${d.avg} ${currency} | **${currSymbol}${d.min} ${currency}** | ${minDateStr} | ${d.count} | ${trend} |`
+      );
     }
     lines.push("");
   }
 
   // Full Calendar Table
-  lines.push(`## 📅 Complete Price Calendar (${calendarFlights.length} Dates, Sorted by ${sortBy === "price" ? "Price" : "Date"})`);
+  const sortByLabel = sortBy === "price" ? i18n.sortByPrice : i18n.sortByDate;
+  const calTitle = t(i18n.calendarTitle, {
+    count: calendarFlights.length,
+    sortBy: sortByLabel
+  });
+  lines.push(`## ${calTitle}`);
   lines.push("");
-  lines.push("| Date | Day of Week | Day of Year | Price (EUR) | Rating | Link |");
+  lines.push(
+    `| ${i18n.date} | ${i18n.dayOfWeek} | ${i18n.dayOfYear} | ${i18n.price} (${currency}) | ${i18n.rating} | ${i18n.link} |`
+  );
   lines.push("| :--- | :--- | :---: | :---: | :---: | :--- |");
 
   for (const f of calendarFlights) {
     const badge = getDealBadge(f.price);
-    const dateFormatted = formatDisplayDate(f.date);
-    lines.push(`| \`${f.date}\` (${dateFormatted.split(", ")[1]}) | ${f.dayOfWeek} | Day ${f.dayOfYear} | **${currSymbol}${f.price} ${currency}** | ${badge} | [Book ↗](${f.bookingUrl}) |`);
+    const dateFormatted = formatDisplayDate(f.date, language);
+    const dayName = getDayOfWeek(f.date, language);
+    const dayLabel = t(i18n.dayLabel);
+
+    lines.push(
+      `| \`${f.date}\` (${dateFormatted}) | ${dayName} | ${dayLabel} | **${currSymbol}${f.price} ${currency}** | ${badge} | [${i18n.book}](${f.bookingUrl}) |`
+    );
   }
   lines.push("");
 
   lines.push("---");
-  lines.push(`*Prices fetched live from Google Flights API. Real-time availability and airline fares are subject to change.*`);
+  lines.push(`*${i18n.footerNote}*`);
 
   return lines.join("\n");
 }

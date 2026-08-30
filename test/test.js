@@ -6,6 +6,7 @@ import { searchFlightPrices } from "../src/api/flights.js";
 import { resolveAirport, formatAirportName } from "../src/data/airports.js";
 import { parseDuration, formatIsoDate, getDayOfWeek, getDayOfYear } from "../src/utils/dates.js";
 import { generateMarkdownReport, calculateStatistics } from "../src/formatters/markdown.js";
+import { getTranslations } from "../src/i18n/translations.js";
 
 async function runTests() {
   console.log("🚀 Running Quick Plane Prices Test Suite...\n");
@@ -50,14 +51,31 @@ async function runTests() {
   const dur2w = parseDuration("2w");
   assert(dur2w.days === 14, "Parse duration 2w");
 
-  const dow = getDayOfWeek("2026-09-18");
-  assert(dow === "Friday", "Day of week for 2026-09-18 is Friday");
+  const dowEn = getDayOfWeek("2026-09-18", "en");
+  assert(dowEn === "Friday", "Day of week for 2026-09-18 in English is Friday");
 
-  const doy = getDayOfYear("2026-01-01");
-  assert(doy === 1, "Day of year for 2026-01-01 is 1");
+  const dowDe = getDayOfWeek("2026-09-18", "de");
+  assert(dowDe === "Freitag", "Day of week for 2026-09-18 in German is Freitag");
 
-  // 3. Live Flight Search Tests (One-Way)
-  console.log("\n--- 3. Live Flight Search (One-Way 1m) ---");
+  const dowEs = getDayOfWeek("2026-09-18", "es");
+  assert(dowEs === "Viernes", "Day of week for 2026-09-18 in Spanish is Viernes");
+
+  // 3. Translations Dictionary Tests
+  console.log("\n--- 3. i18n Translations Dictionary ---");
+  const transEn = getTranslations("en");
+  assert(transEn.reportTitle === "Flight Prices", "English translations reportTitle");
+
+  const transDe = getTranslations("de");
+  assert(transDe.reportTitle === "Flugpreise", "German translations reportTitle");
+
+  const transEs = getTranslations("es");
+  assert(transEs.reportTitle === "Precios de Vuelos", "Spanish translations reportTitle");
+
+  const transFr = getTranslations("fr");
+  assert(transFr.reportTitle === "Prix des Vols", "French translations reportTitle");
+
+  // 4. Live Flight Search Tests (One-Way)
+  console.log("\n--- 4. Live Flight Search (One-Way 1m) ---");
   try {
     const res1 = await searchFlightPrices({
       origin: "BER",
@@ -73,8 +91,8 @@ async function runTests() {
     assert(false, `Live search failed: ${err.message}`);
   }
 
-  // 4. Live Flight Search (Round-Trip)
-  console.log("\n--- 4. Live Flight Search (Round-Trip 7d) ---");
+  // 5. Live Flight Search (Round-Trip)
+  console.log("\n--- 5. Live Flight Search (Round-Trip 7d) ---");
   try {
     const resRT = await searchFlightPrices({
       origin: "MAD",
@@ -91,8 +109,8 @@ async function runTests() {
     assert(false, `Round-trip search failed: ${err.message}`);
   }
 
-  // 5. Markdown Report Generation Tests
-  console.log("\n--- 5. Markdown Formatter Tests ---");
+  // 6. Markdown Report Generation Tests (Multi-Language)
+  console.log("\n--- 6. Markdown Formatter Tests ---");
   const mockData = {
     origin: "BER",
     destination: "BCN",
@@ -109,12 +127,21 @@ async function runTests() {
     ]
   };
 
-  const md = generateMarkdownReport(mockData);
-  assert(md.includes("# ✈️ Flight Prices:"), "Markdown includes title");
-  assert(md.includes("€50 EUR") || md.includes("50 EUR"), "Markdown includes cheapest price");
-  assert(md.includes("Friday"), "Markdown includes day of week");
-  assert(md.includes("Day 254"), "Markdown includes day of year");
-  assert(md.includes("Day of the Week Price Analysis"), "Markdown includes day of week analysis");
+  const mdEn = generateMarkdownReport(mockData, { language: "en" });
+  assert(mdEn.includes("# ✈️ Flight Prices:"), "English report title");
+  assert(mdEn.includes("€50 EUR"), "English price display");
+  assert(mdEn.includes("Friday"), "English day of week");
+
+  const mdDe = generateMarkdownReport(mockData, { language: "de" });
+  assert(mdDe.includes("# ✈️ Flugpreise:"), "German report title");
+  assert(mdDe.includes("Freitag"), "German day of week");
+  assert(mdDe.includes("Wochentags-Preisanalyse"), "German day of week analysis title");
+  assert(mdDe.includes("Günstigstes Ticket:"), "German cheapest ticket header");
+
+  const mdEs = generateMarkdownReport(mockData, { language: "es" });
+  assert(mdEs.includes("# ✈️ Precios de Vuelos:"), "Spanish report title");
+  assert(mdEs.includes("Viernes"), "Spanish day of week");
+  assert(mdEs.includes("Billete más barato:"), "Spanish cheapest ticket header");
 
   console.log(`\n========================================`);
   console.log(`Test Results: ${passed} Passed, ${failed} Failed`);

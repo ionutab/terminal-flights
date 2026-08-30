@@ -24,9 +24,10 @@ function getRandomUserAgent() {
  * @param {string} departDate
  * @param {string} [returnDate]
  * @param {string} [currency]
+ * @param {string} [language]
  * @returns {string}
  */
-export function buildGoogleFlightsUrl(origin, dest, departDate, returnDate = null, currency = "EUR") {
+export function buildGoogleFlightsUrl(origin, dest, departDate, returnDate = null, currency = "EUR", language = "en") {
   let query = `Flights from ${origin} to ${dest} on ${departDate}`;
   if (returnDate) {
     query += ` through ${returnDate}`;
@@ -36,7 +37,9 @@ export function buildGoogleFlightsUrl(origin, dest, departDate, returnDate = nul
   if (currency) {
     params.set("curr", currency.toUpperCase());
   }
-  params.set("hl", "en");
+  if (language) {
+    params.set("hl", language.toLowerCase());
+  }
   return `https://www.google.com/travel/flights?${params.toString()}`;
 }
 
@@ -199,7 +202,7 @@ async function fetchCalendarChunk({
     directOnly
   });
 
-  const url = `${BASE_URL}?curr=${encodeURIComponent(currency.toUpperCase())}&hl=${encodeURIComponent(language)}&gl=DE`;
+  const url = `${BASE_URL}?curr=${encodeURIComponent(currency.toUpperCase())}&hl=${encodeURIComponent(language.toLowerCase())}&gl=DE`;
 
   let lastError = null;
   for (let attempt = 1; attempt <= retries; attempt++) {
@@ -209,7 +212,7 @@ async function fetchCalendarChunk({
         headers: {
           "content-type": "application/x-www-form-urlencoded;charset=UTF-8",
           "user-agent": getRandomUserAgent(),
-          "accept-language": "en-US,en;q=0.9",
+          "accept-language": `${language},en;q=0.9`,
           "origin": "https://www.google.com",
           "referer": "https://www.google.com/travel/flights"
         },
@@ -283,6 +286,7 @@ async function fetchCalendarChunk({
  * @param {number} [options.tripDurationDays] - Round-trip duration in days (default: 7)
  * @param {boolean} [options.directOnly] - Filter for direct flights only (default: false)
  * @param {string} [options.currency] - Currency (default: "EUR")
+ * @param {string} [options.language] - Output and API language (default: "en")
  * @param {function} [options.onProgress] - Optional progress callback
  * @returns {Promise<{
  *   origin: string,
@@ -292,6 +296,7 @@ async function fetchCalendarChunk({
  *   roundTrip: boolean,
  *   tripDurationDays: number,
  *   currency: string,
+ *   language: string,
  *   directOnly: boolean,
  *   flights: Array<{
  *     date: string,
@@ -313,10 +318,12 @@ export async function searchFlightPrices({
   tripDurationDays = 7,
   directOnly = false,
   currency = "EUR",
+  language = "en",
   onProgress = null
 }) {
   const orig = origin.trim().toUpperCase();
   const dest = destination.trim().toUpperCase();
+  const lang = (language || "en").trim().toLowerCase();
 
   // Start date defaults to tomorrow
   const start = startDate ? new Date(startDate.getTime()) : addDays(new Date(), 1);
@@ -337,7 +344,8 @@ export async function searchFlightPrices({
       roundTrip,
       tripDurationDays,
       directOnly,
-      currency
+      currency,
+      language: lang
     });
 
     if (onProgress) {
@@ -362,16 +370,17 @@ export async function searchFlightPrices({
   // Sort chronologically
   const sortedRaw = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
 
-  // Enrich with day of week, day of year, booking URL
+  // Enrich with day of week, day of year, booking URL (in the requested language)
   const enriched = sortedRaw.map((item) => {
-    const dayOfWeek = getDayOfWeek(item.date);
+    const dayOfWeek = getDayOfWeek(item.date, lang);
     const dayOfYear = getDayOfYear(item.date);
     const bookingUrl = buildGoogleFlightsUrl(
       orig,
       dest,
       item.date,
       item.returnDate,
-      currency
+      currency,
+      lang
     );
 
     return {
@@ -394,6 +403,7 @@ export async function searchFlightPrices({
     roundTrip,
     tripDurationDays,
     currency: currency.toUpperCase(),
+    language: lang,
     directOnly,
     flights: enriched
   };
