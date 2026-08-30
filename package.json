@@ -1,0 +1,30 @@
+{
+  "name": "quick-plane-prices",
+  "version": "1.0.0",
+  "description": "CLI tool to scan flight prices for a duration and output Markdown reports",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "plane-prices": "./bin/plane-prices.js"
+  },
+  "scripts": {
+    "start": "node ./bin/plane-prices.js",
+    "test": "node test/test.js"
+  },
+  "keywords": [
+    "flights",
+    "prices",
+    "cli",
+    "google-flights",
+    "travel",
+    "markdown"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@inquirer/prompts": "^7.3.3",
+    "chalk": "^5.4.1",
+    "commander": "^13.1.0",
+    "ora": "^8.2.0"
+  }
+}
