@@ -2,4 +2,4 @@
  * Terminal Flights - Main Entrypoint
  */
 
-import "./bin/plane-prices.js";
+import "./bin/terminal-flights.js";

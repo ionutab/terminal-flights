@@ -20,7 +20,7 @@ import { generateMarkdownReport, calculateStatistics } from "../src/formatters/m
 const program = new Command();
 
 program
-  .name("plane-prices")
+  .name("terminal-flights")
   .description("Find cheapest flight prices across a duration window and output Markdown")
   .version("1.0.0")
   .argument("[origin]", "Origin airport IATA code or city (e.g. BER, London, JFK)")
@@ -187,12 +187,12 @@ async function main() {
     if (!originStr || !destStr) {
       console.error(chalk.red("Error: Both origin and destination airports are required."));
       console.log(chalk.yellow("\nUsage:"));
-      console.log("  plane-prices <origin> <destination> [duration]");
-      console.log("  plane-prices BER BCN 1m");
-      console.log("  plane-prices BER BCN 1m --google-flights");
-      console.log("  plane-prices BER BCN 2m --language de");
-      console.log("  plane-prices BER BCN 2m --round-trip -l 7");
-      console.log("  plane-prices --interactive");
+      console.log("  terminal-flights <origin> <destination> [duration]");
+      console.log("  terminal-flights BER BCN 1m");
+      console.log("  terminal-flights BER BCN 1m --google-flights");
+      console.log("  terminal-flights BER BCN 2m --language de");
+      console.log("  terminal-flights BER BCN 2m --round-trip -l 7");
+      console.log("  terminal-flights --interactive");
       process.exit(1);
     }
 

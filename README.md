@@ -6,35 +6,46 @@ A fast and lightweight CLI tool to scan flight prices between two airports over 
 
 ## ⚡ Quick Start
 
-### 1. Run Directly
+### 1. Installation & Global Link
 
-You can run the CLI tool directly from this directory:
+To use the `terminal-flights` command globally across your terminal:
 
 ```bash
-# Basic usage: <origin> <destination> [duration]
-./bin/plane-prices.js BER BCN 1m
-
-# Include Google Flights booking links with --google-flights (or --links)
-./bin/plane-prices.js BER BCN 1m --google-flights
-
-# Scan 2 months into the future
-./bin/plane-prices.js BER BCN 2m
-
-# Output in German (de), Spanish (es), French (fr), etc.
-./bin/plane-prices.js BER BCN 1m --language de
-
-# Or use the global command (if npm linked)
-plane-prices BER BCN 1m
+# Link the CLI package globally
+npm link
 ```
 
-### 2. Interactive Mode
+Now you can invoke `terminal-flights` from any folder.
+
+*(To unlink later, simply run `npm unlink -g terminal-flights`)*
+
+### 2. Basic Usage
+
+```bash
+# Basic search: <origin> <destination> [duration]
+terminal-flights BER BCN 1m
+
+# Include Google Flights direct booking links with --google-flights (or --links)
+terminal-flights BER BCN 1m --google-flights
+
+# Scan 2 months into the future
+terminal-flights BER BCN 2m
+
+# Output in German (de), Spanish (es), French (fr), etc.
+terminal-flights BER BCN 1m --language de
+
+# Or run directly via script path without npm link
+./bin/terminal-flights.js BER BCN 1m
+```
+
+### 3. Interactive Mode
 
 Run without arguments to start the interactive wizard (includes language & Google Flights link toggles):
 
 ```bash
-plane-prices
+terminal-flights
 # or
-plane-prices --interactive
+terminal-flights --interactive
 ```
 
 ---
@@ -44,7 +55,7 @@ plane-prices --interactive
 ### Positional Arguments
 
 ```bash
-plane-prices <origin> <destination> [duration]
+terminal-flights <origin> <destination> [duration]
 ```
 
 * **`origin`**: 3-letter IATA code or city name (e.g. `BER`, `LHR`, `JFK`, `Berlin`, `Paris`, `Madrid`).
@@ -63,46 +74,46 @@ plane-prices <origin> <destination> [duration]
 
 #### 1. Scan cheapest flights for next month (Clean tables without links)
 ```bash
-plane-prices BER BCN 1m
+terminal-flights BER BCN 1m
 ```
 
 #### 2. Include Google Flights booking links
 ```bash
-plane-prices BER BCN 1m --google-flights
+terminal-flights BER BCN 1m --google-flights
 # or
-plane-prices BER BCN 1m --links
+terminal-flights BER BCN 1m --links
 ```
 
 #### 3. Output report in German (`de`), Spanish (`es`), French (`fr`), Polish (`pl`), etc.
 ```bash
-plane-prices BER BCN 1m --language de
-plane-prices MAD CDG 1m --language es
-plane-prices CDG FCO 1m --language fr
+terminal-flights BER BCN 1m --language de
+terminal-flights MAD CDG 1m --language es
+terminal-flights CDG FCO 1m --language fr
 ```
 
 #### 4. Scan 2 months and save report to a Markdown file
 ```bash
-plane-prices BER BCN 2m --language de -o cheap_flights_de.md
+terminal-flights BER BCN 2m --language de -o cheap_flights_de.md
 ```
 
 #### 5. Search Round-Trip flights (e.g. 7-day trip duration)
 ```bash
-plane-prices MAD CDG 1m --round-trip --trip-length 7
+terminal-flights MAD CDG 1m --round-trip --trip-length 7
 ```
 
 #### 6. Direct / Non-stop flights only
 ```bash
-plane-prices LHR JFK 2m --direct
+terminal-flights LHR JFK 2m --direct
 ```
 
 #### 7. Sort calendar table by price (cheapest first) and show top 15
 ```bash
-plane-prices BER BCN 1m --sort price --top 15
+terminal-flights BER BCN 1m --sort price --top 15
 ```
 
 #### 8. Pipe raw Markdown output to another tool
 ```bash
-plane-prices BER BCN 1m --raw > report.md
+terminal-flights BER BCN 1m --raw > report.md
 ```
 
 ---
@@ -170,7 +181,7 @@ The generated Markdown output includes:
 ```
 terminal-flights/
 ├── bin/
-│   └── plane-prices.js       # CLI executable entry point
+│   └── terminal-flights.js       # CLI executable entry point
 ├── src/
 │   ├── api/
 │   │   └── flights.js        # Google Flights RPC client & multi-chunk fetcher

@@ -5,10 +5,10 @@
   "type": "module",
   "main": "index.js",
   "bin": {
-    "plane-prices": "./bin/plane-prices.js"
+    "terminal-flights": "./bin/terminal-flights.js"
   },
   "scripts": {
-    "start": "node ./bin/plane-prices.js",
+    "start": "node ./bin/terminal-flights.js",
     "test": "node test/test.js"
   },
   "keywords": [
