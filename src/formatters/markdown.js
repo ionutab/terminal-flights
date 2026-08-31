@@ -1,10 +1,65 @@
 /**
- * Markdown Formatter for Flight Prices with Multi-Language Support
+ * Markdown Formatter for Flight Prices with Multi-Language Support, Optional Links, and Pretty Column Alignment
  */
 
 import { formatAirportName } from "../data/airports.js";
 import { formatDisplayDate, getDayOfWeek, getDayOfWeekIndex } from "../utils/dates.js";
 import { getTranslations, t } from "../i18n/translations.js";
+
+/**
+ * Formats a GitHub-Flavored Markdown table with vertically aligned column borders
+ * @param {string[]} headers
+ * @param {string[][]} rows
+ * @param {('left'|'center'|'right')[]} [alignments=[]]
+ * @returns {string}
+ */
+export function formatMarkdownTable(headers, rows, alignments = []) {
+  if (!headers || headers.length === 0) return "";
+
+  // Compute maximum width for each column across headers and all rows
+  const colWidths = headers.map((h, i) => {
+    let max = (h || "").length;
+    for (const row of rows) {
+      if (row && row[i] !== undefined) {
+        max = Math.max(max, String(row[i]).length);
+      }
+    }
+    return Math.max(max, 3);
+  });
+
+  const padCell = (content, width, align = "left") => {
+    const str = content === null || content === undefined ? "" : String(content);
+    const pad = Math.max(0, width - str.length);
+    if (align === "right") {
+      return " ".repeat(pad) + str;
+    }
+    if (align === "center") {
+      const left = Math.floor(pad / 2);
+      const right = pad - left;
+      return " ".repeat(left) + str + " ".repeat(right);
+    }
+    return str + " ".repeat(pad);
+  };
+
+  const formatSeparator = (width, align = "left") => {
+    const innerWidth = Math.max(3, width);
+    if (align === "center") {
+      return ":" + "-".repeat(Math.max(1, innerWidth - 2)) + ":";
+    }
+    if (align === "right") {
+      return "-".repeat(Math.max(1, innerWidth - 1)) + ":";
+    }
+    return ":" + "-".repeat(Math.max(1, innerWidth - 1));
+  };
+
+  const headerLine = `| ${headers.map((h, i) => padCell(h, colWidths[i], alignments[i] || "left")).join(" | ")} |`;
+  const separatorLine = `| ${headers.map((_, i) => formatSeparator(colWidths[i], alignments[i] || "left")).join(" | ")} |`;
+  const rowLines = rows.map(
+    (row) => `| ${headers.map((_, i) => padCell(row[i] || "", colWidths[i], alignments[i] || "left")).join(" | ")} |`
+  );
+
+  return [headerLine, separatorLine, ...rowLines].join("\n");
+}
 
 /**
  * Calculates statistical metrics from flight results
@@ -38,7 +93,6 @@ export function calculateStatistics(flights, language = "en") {
   const cheapestFlight = flights.reduce((minF, f) => (!minF || f.price < minF.price ? f : minF), null);
 
   // Day of week index aggregation (0 = Sunday, 1 = Monday, ..., 6 = Saturday)
-  // Re-order starting from Monday (1..6, 0)
   const mondayFirstIndices = [1, 2, 3, 4, 5, 6, 0];
   const dayStats = {};
   for (const idx of mondayFirstIndices) {
@@ -62,7 +116,6 @@ export function calculateStatistics(flights, language = "en") {
     .map((idx) => {
       const count = dayStats[idx].count;
       const dayAvg = Math.round(dayStats[idx].total / count);
-      // Sample date for this day of week index to get localized name
       const sampleDate = dayStats[idx].minFlight ? dayStats[idx].minFlight.date : "2026-09-07";
       const localizedDayName = getDayOfWeek(sampleDate, language);
 
@@ -98,10 +151,12 @@ export function calculateStatistics(flights, language = "en") {
  * @param {number} [options.topN=10]
  * @param {'date'|'price'} [options.sortBy='date']
  * @param {string} [options.language='en']
+ * @param {boolean} [options.showLinks=false] - Only include Google Flights links when explicitly enabled
  * @returns {string}
  */
 export function generateMarkdownReport(data, options = {}) {
   const language = options.language || data.language || "en";
+  const showLinks = options.showLinks ?? options.googleFlights ?? options.links ?? false;
   const { topN = 10, sortBy = "date" } = options;
   const {
     origin,
@@ -156,70 +211,79 @@ export function generateMarkdownReport(data, options = {}) {
   lines.push(`# ✈️ ${i18n.reportTitle}: ${originDisplay} ➔ ${destDisplay}`);
   lines.push("");
 
-  // Metadata Table
-  lines.push(`| ${i18n.parameter} | ${i18n.details} |`);
-  lines.push("| :--- | :--- |");
-  lines.push(`| **${i18n.route}** | \`${origin}\` (${originDisplay}) ➔ \`${destination}\` (${destDisplay}) |`);
-  lines.push(`| **${i18n.tripType}** | ${roundTrip ? t(i18n.roundTrip, { days: tripDurationDays }) : i18n.oneWay} |`);
-  lines.push(`| **${i18n.flightPreference}** | ${directOnly ? i18n.directOnly : i18n.allFlights} |`);
-  lines.push(`| **${i18n.searchRange}** | \`${startDate}\` - \`${endDate}\` (${t(i18n.daysScanned, { count: flights.length })}) |`);
-  lines.push(`| **${i18n.currency}** | ${currency} (${currSymbol.trim()}) |`);
-  lines.push(`| **${i18n.reportGenerated}** | ${now} |`);
+  // 1. Metadata Table
+  const metaHeaders = [i18n.parameter, i18n.details];
+  const metaRows = [
+    [`**${i18n.route}**`, `\`${origin}\` (${originDisplay}) ➔ \`${destination}\` (${destDisplay})`],
+    [`**${i18n.tripType}**`, roundTrip ? t(i18n.roundTrip, { days: tripDurationDays }) : i18n.oneWay],
+    [`**${i18n.flightPreference}**`, directOnly ? i18n.directOnly : i18n.allFlights],
+    [`**${i18n.searchRange}**`, `\`${startDate}\` - \`${endDate}\` (${t(i18n.daysScanned, { count: flights.length })})`],
+    [`**${i18n.currency}**`, `${currency} (${currSymbol.trim()})`],
+    [`**${i18n.reportGenerated}**`, now]
+  ];
+  lines.push(formatMarkdownTable(metaHeaders, metaRows, ["left", "left"]));
   lines.push("");
 
-  // Key Findings & Summary
+  // 2. Key Findings & Summary
   lines.push(`## ${i18n.summaryTitle}`);
   lines.push("");
 
   const cheapestDay = getDayOfWeek(stats.cheapestFlight.date, language);
-  lines.push(
+  let cheapestLine =
     "- " +
     t(i18n.cheapestTicket, {
       price: `${currSymbol}${stats.cheapestFlight.price} ${currency}`,
       dayOfWeek: cheapestDay,
-      date: stats.cheapestFlight.date,
-      url: stats.cheapestFlight.bookingUrl
-    })
+      date: stats.cheapestFlight.date
+    });
+
+  if (showLinks && stats.cheapestFlight.bookingUrl) {
+    cheapestLine += ` — [${i18n.bookOnGoogleFlights}](${stats.cheapestFlight.bookingUrl})`;
+  }
+  lines.push(cheapestLine);
+
+  lines.push(
+    "- " +
+      t(i18n.priceRange, {
+        min: `${currSymbol}${stats.min}`,
+        max: `${currSymbol}${stats.max} ${currency}`
+      })
   );
 
   lines.push(
     "- " +
-    t(i18n.priceRange, {
-      min: `${currSymbol}${stats.min}`,
-      max: `${currSymbol}${stats.max} ${currency}`
-    })
-  );
-
-  lines.push(
-    "- " +
-    t(i18n.averagePrice, {
-      avg: `${currSymbol}${stats.avg} ${currency}`,
-      median: `${currSymbol}${stats.median} ${currency}`
-    })
+      t(i18n.averagePrice, {
+        avg: `${currSymbol}${stats.avg} ${currency}`,
+        median: `${currSymbol}${stats.median} ${currency}`
+      })
   );
 
   if (stats.bestDay) {
     lines.push(
       "- " +
-      t(i18n.bestDayToFly, {
-        day: stats.bestDay.day,
-        avg: `${currSymbol}${stats.bestDay.avg} ${currency}`,
-        min: `${currSymbol}${stats.bestDay.min} ${currency}`
-      })
+        t(i18n.bestDayToFly, {
+          day: stats.bestDay.day,
+          avg: `${currSymbol}${stats.bestDay.avg} ${currency}`,
+          min: `${currSymbol}${stats.bestDay.min} ${currency}`
+        })
     );
   }
   lines.push("");
 
-  // Top Deals Table
+  // 3. Top Deals Table
   const topTitle = t(i18n.topDealsTitle, { count: Math.min(topN, flights.length) });
   lines.push(`## ${topTitle}`);
   lines.push("");
-  lines.push(
-    `| ${i18n.rank} | ${i18n.date} | ${i18n.dayOfWeek} | ${i18n.dayOfYear} | ${i18n.price} | ${i18n.savingsVsAvg} | ${i18n.bookingLink} |`
-  );
-  lines.push("| :---: | :--- | :--- | :---: | :---: | :---: | :--- |");
 
-  topCheapest.forEach((f, idx) => {
+  const topHeaders = showLinks
+    ? [i18n.rank, i18n.date, i18n.dayOfWeek, i18n.price, i18n.savingsVsAvg, i18n.bookingLink]
+    : [i18n.rank, i18n.date, i18n.dayOfWeek, i18n.price, i18n.savingsVsAvg];
+
+  const topAlignments = showLinks
+    ? ["center", "left", "left", "center", "left", "left"]
+    : ["center", "left", "left", "center", "left"];
+
+  const topRows = topCheapest.map((f, idx) => {
     const rankEmoji = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `#${idx + 1}`;
     const diff = stats.avg - f.price;
     const pct = stats.avg > 0 ? Math.round((diff / stats.avg) * 100) : 0;
@@ -228,36 +292,62 @@ export function generateMarkdownReport(data, options = {}) {
         ? t(i18n.saveAmount, { pct, diff: `${currSymbol}${diff}` })
         : i18n.averageBadge;
 
-    const dateFormatted = formatDisplayDate(f.date, language);
     const dayName = getDayOfWeek(f.date, language);
-    const dayLabel = t(i18n.dayLabel);
 
-    lines.push(
-      `| ${rankEmoji} | **${f.date}** (${dateFormatted}) | ${dayName} | ${dayLabel} | **${currSymbol}${f.price} ${currency}** | ${savingsStr} | [${i18n.viewFlight}](${f.bookingUrl}) |`
-    );
+    if (showLinks) {
+      return [
+        rankEmoji,
+        `**${f.date}**`,
+        dayName,
+        `**${currSymbol}${f.price} ${currency}**`,
+        savingsStr,
+        `[${i18n.viewFlight}](${f.bookingUrl})`
+      ];
+    }
+    return [
+      rankEmoji,
+      `**${f.date}**`,
+      dayName,
+      `**${currSymbol}${f.price} ${currency}**`,
+      savingsStr
+    ];
   });
+
+  lines.push(formatMarkdownTable(topHeaders, topRows, topAlignments));
   lines.push("");
 
-  // Day of Week Analysis
+  // 4. Day of Week Analysis
   if (stats.dayAnalysis && stats.dayAnalysis.length > 0) {
     lines.push(`## ${i18n.dayAnalysisTitle}`);
     lines.push("");
-    lines.push(
-      `| ${i18n.dayOfWeek} | ${i18n.avgPrice} | ${i18n.minPrice} | ${i18n.cheapestDateFound} | ${i18n.flights} | ${i18n.trend} |`
-    );
-    lines.push("| :--- | :---: | :---: | :--- | :---: | :--- |");
 
-    for (const d of stats.dayAnalysis) {
+    const dayHeaders = [
+      i18n.dayOfWeek,
+      i18n.avgPrice,
+      i18n.minPrice,
+      i18n.cheapestDateFound,
+      i18n.flights,
+      i18n.trend
+    ];
+    const dayAlignments = ["left", "center", "center", "left", "center", "left"];
+    const dayRows = stats.dayAnalysis.map((d) => {
       const trend = d.avg <= stats.avg ? i18n.trendCheap : i18n.trendExpensive;
       const minDateStr = d.minFlight ? `${d.minFlight.date} (${currSymbol}${d.minFlight.price})` : "-";
-      lines.push(
-        `| **${d.day}** | ${currSymbol}${d.avg} ${currency} | **${currSymbol}${d.min} ${currency}** | ${minDateStr} | ${d.count} | ${trend} |`
-      );
-    }
+      return [
+        `**${d.day}**`,
+        `${currSymbol}${d.avg} ${currency}`,
+        `**${currSymbol}${d.min} ${currency}**`,
+        minDateStr,
+        `${d.count}`,
+        trend
+      ];
+    });
+
+    lines.push(formatMarkdownTable(dayHeaders, dayRows, dayAlignments));
     lines.push("");
   }
 
-  // Full Calendar Table
+  // 5. Full Calendar Table
   const sortByLabel = sortBy === "price" ? i18n.sortByPrice : i18n.sortByDate;
   const calTitle = t(i18n.calendarTitle, {
     count: calendarFlights.length,
@@ -265,21 +355,37 @@ export function generateMarkdownReport(data, options = {}) {
   });
   lines.push(`## ${calTitle}`);
   lines.push("");
-  lines.push(
-    `| ${i18n.date} | ${i18n.dayOfWeek} | ${i18n.dayOfYear} | ${i18n.price} (${currency}) | ${i18n.rating} | ${i18n.link} |`
-  );
-  lines.push("| :--- | :--- | :---: | :---: | :---: | :--- |");
 
-  for (const f of calendarFlights) {
+  const calHeaders = showLinks
+    ? [i18n.date, i18n.dayOfWeek, `${i18n.price} (${currency})`, i18n.rating, i18n.link]
+    : [i18n.date, i18n.dayOfWeek, `${i18n.price} (${currency})`, i18n.rating];
+
+  const calAlignments = showLinks
+    ? ["left", "left", "center", "center", "left"]
+    : ["left", "left", "center", "center"];
+
+  const calRows = calendarFlights.map((f) => {
     const badge = getDealBadge(f.price);
-    const dateFormatted = formatDisplayDate(f.date, language);
     const dayName = getDayOfWeek(f.date, language);
-    const dayLabel = t(i18n.dayLabel);
 
-    lines.push(
-      `| \`${f.date}\` (${dateFormatted}) | ${dayName} | ${dayLabel} | **${currSymbol}${f.price} ${currency}** | ${badge} | [${i18n.book}](${f.bookingUrl}) |`
-    );
-  }
+    if (showLinks) {
+      return [
+        `\`${f.date}\``,
+        dayName,
+        `**${currSymbol}${f.price} ${currency}**`,
+        badge,
+        `[${i18n.book}](${f.bookingUrl})`
+      ];
+    }
+    return [
+      `\`${f.date}\``,
+      dayName,
+      `**${currSymbol}${f.price} ${currency}**`,
+      badge
+    ];
+  });
+
+  lines.push(formatMarkdownTable(calHeaders, calRows, calAlignments));
   lines.push("");
 
   lines.push("---");

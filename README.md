@@ -1,6 +1,6 @@
 # ✈️ Quick Plane Prices
 
-A fast and lightweight CLI tool to scan flight prices between two airports over a customizable duration window (`1m` for 1 month, `2m` for 2 months, `3m`, `1w`, `30d`, etc.) and output a clean Markdown report with the cheapest tickets, day of week, day of year, prices in EUR, multi-language support, and direct booking links.
+A fast and lightweight CLI tool to scan flight prices between two airports over a customizable duration window (`1m` for 1 month, `2m` for 2 months, `3m`, `1w`, `30d`, etc.) and output a clean Markdown report with the cheapest tickets, day of week, prices in EUR, multi-language support, and optional Google Flights direct booking links.
 
 ---
 
@@ -14,6 +14,9 @@ You can run the CLI tool directly from this directory:
 # Basic usage: <origin> <destination> [duration]
 ./bin/plane-prices.js BER BCN 1m
 
+# Include Google Flights booking links with --google-flights (or --links)
+./bin/plane-prices.js BER BCN 1m --google-flights
+
 # Scan 2 months into the future
 ./bin/plane-prices.js BER BCN 2m
 
@@ -26,7 +29,7 @@ plane-prices BER BCN 1m
 
 ### 2. Interactive Mode
 
-Run without arguments to start the interactive wizard (includes language selection):
+Run without arguments to start the interactive wizard (includes language & Google Flights link toggles):
 
 ```bash
 plane-prices
@@ -58,39 +61,46 @@ plane-prices <origin> <destination> [duration]
 
 ### Examples
 
-#### 1. Scan cheapest flights for next month (English)
+#### 1. Scan cheapest flights for next month (Clean tables without links)
 ```bash
 plane-prices BER BCN 1m
 ```
 
-#### 2. Output report in German (`de`), Spanish (`es`), French (`fr`), Polish (`pl`), etc.
+#### 2. Include Google Flights booking links
+```bash
+plane-prices BER BCN 1m --google-flights
+# or
+plane-prices BER BCN 1m --links
+```
+
+#### 3. Output report in German (`de`), Spanish (`es`), French (`fr`), Polish (`pl`), etc.
 ```bash
 plane-prices BER BCN 1m --language de
 plane-prices MAD CDG 1m --language es
 plane-prices CDG FCO 1m --language fr
 ```
 
-#### 3. Scan 2 months and save report to a Markdown file
+#### 4. Scan 2 months and save report to a Markdown file
 ```bash
 plane-prices BER BCN 2m --language de -o cheap_flights_de.md
 ```
 
-#### 4. Search Round-Trip flights (e.g. 7-day trip duration)
+#### 5. Search Round-Trip flights (e.g. 7-day trip duration)
 ```bash
 plane-prices MAD CDG 1m --round-trip --trip-length 7
 ```
 
-#### 5. Direct / Non-stop flights only
+#### 6. Direct / Non-stop flights only
 ```bash
 plane-prices LHR JFK 2m --direct
 ```
 
-#### 6. Sort calendar table by price (cheapest first) and show top 15
+#### 7. Sort calendar table by price (cheapest first) and show top 15
 ```bash
 plane-prices BER BCN 1m --sort price --top 15
 ```
 
-#### 7. Pipe raw Markdown output to another tool
+#### 8. Pipe raw Markdown output to another tool
 ```bash
 plane-prices BER BCN 1m --raw > report.md
 ```
@@ -106,6 +116,7 @@ plane-prices BER BCN 1m --raw > report.md
 | `--duration <window>` | `-d` | Scan window: `1m`, `2m`, `3m`, `30d`, `60d`, `1w` | `1m` |
 | `--start <date>` | `-s` | Start date in `YYYY-MM-DD` | Tomorrow |
 | `--lang, --language <code>` | | Output language code: `en`, `de`, `es`, `fr`, `it`, `pt`, `pl`, `nl`, `ru`, `uk`, etc. | `en` |
+| `--google-flights`, `--links` | | Include Google Flights direct booking links in the markdown output | `false` |
 | `--round-trip` | `-r` | Search round-trip ticket prices | `false` (One-Way) |
 | `--trip-length <days>` | `-l` | Round-trip duration in days | `7` |
 | `--direct` | | Filter for direct (non-stop) flights only | `false` |
@@ -143,13 +154,14 @@ The generated Markdown output includes:
 
 1. **Route & Search Metadata**: Origin airport, destination, search date window, and currency.
 2. **Executive Summary**:
-   - 🏆 **Cheapest Ticket**: Price, Date, Day of week (localized), Day of year, and direct booking link.
+   - 🏆 **Cheapest Ticket**: Price, Date, Day of week (localized).
    - 🏷️ **Price Range**: Min to Max price in EUR.
    - 📈 **Average & Median Prices**.
    - 📅 **Best Day of Week to Fly**: Identifies the statistically cheapest day of the week.
-3. **Top Cheapest Dates Table**: Ranked deals with date, day of week, day of year, price in EUR, and percentage saved vs. average.
+3. **Top Cheapest Dates Table**: Ranked deals with date, day of week, price in EUR, and percentage saved vs. average.
 4. **Day of Week Price Analysis**: Average and minimum prices broken down from Monday to Sunday in target language.
-5. **Complete Date-by-Date Price Calendar**: Full breakdown of all dates with Deal Rating badges (`🟢 Great Deal`, `🟡 Average`, `🔴 Expensive`) and direct deep links to Google Flights.
+5. **Complete Date-by-Date Price Calendar**: Full breakdown of all dates with Deal Rating badges (`🟢 Great Deal`, `🟡 Average`, `🔴 Expensive`).
+6. **Optional Direct Booking Links**: Enabled with `--google-flights` or `--links`.
 
 ---
 

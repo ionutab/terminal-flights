@@ -60,6 +60,9 @@ async function runTests() {
   const dowEs = getDayOfWeek("2026-09-18", "es");
   assert(dowEs === "Viernes", "Day of week for 2026-09-18 in Spanish is Viernes");
 
+  const doy = getDayOfYear("2026-01-01");
+  assert(doy === 1, "Day of year for 2026-01-01 is 1");
+
   // 3. Translations Dictionary Tests
   console.log("\n--- 3. i18n Translations Dictionary ---");
   const transEn = getTranslations("en");
@@ -109,7 +112,7 @@ async function runTests() {
     assert(false, `Round-trip search failed: ${err.message}`);
   }
 
-  // 6. Markdown Report Generation Tests (Multi-Language)
+  // 6. Markdown Report Generation Tests (Multi-Language & Optional Links)
   console.log("\n--- 6. Markdown Formatter Tests ---");
   const mockData = {
     origin: "BER",
@@ -121,27 +124,45 @@ async function runTests() {
     currency: "EUR",
     directOnly: false,
     flights: [
-      { date: "2026-09-10", dayOfWeek: "Thursday", dayOfYear: 253, price: 100, currency: "EUR", bookingUrl: "https://flights.google.com" },
-      { date: "2026-09-11", dayOfWeek: "Friday", dayOfYear: 254, price: 50, currency: "EUR", bookingUrl: "https://flights.google.com" },
-      { date: "2026-09-12", dayOfWeek: "Saturday", dayOfYear: 255, price: 75, currency: "EUR", bookingUrl: "https://flights.google.com" }
+      { date: "2026-09-10", dayOfWeek: "Thursday", dayOfYear: 253, price: 100, currency: "EUR", bookingUrl: "https://flights.google.com/test1" },
+      { date: "2026-09-11", dayOfWeek: "Friday", dayOfYear: 254, price: 50, currency: "EUR", bookingUrl: "https://flights.google.com/test2" },
+      { date: "2026-09-12", dayOfWeek: "Saturday", dayOfYear: 255, price: 75, currency: "EUR", bookingUrl: "https://flights.google.com/test3" }
     ]
   };
 
-  const mdEn = generateMarkdownReport(mockData, { language: "en" });
-  assert(mdEn.includes("# ✈️ Flight Prices:"), "English report title");
-  assert(mdEn.includes("€50 EUR"), "English price display");
-  assert(mdEn.includes("Friday"), "English day of week");
+  const mdNoLinks = generateMarkdownReport(mockData, { language: "en", showLinks: false });
+  assert(mdNoLinks.includes("# ✈️ Flight Prices:"), "English report title");
+  assert(mdNoLinks.includes("€50 EUR"), "English price display");
+  assert(mdNoLinks.includes("Friday"), "English day of week");
+  assert(!mdNoLinks.includes("https://flights.google.com"), "No Google Flights links by default when showLinks=false");
+  assert(!mdNoLinks.includes("Booking Link"), "No Booking Link column by default");
+  assert(!mdNoLinks.includes("Day of Year"), "No Day of Year column in tables");
+  assert(!mdNoLinks.includes("Day 254"), "No Day of Year label in output");
 
-  const mdDe = generateMarkdownReport(mockData, { language: "de" });
+  const mdWithLinks = generateMarkdownReport(mockData, { language: "en", showLinks: true });
+  assert(mdWithLinks.includes("https://flights.google.com/test2"), "Google Flights link present when showLinks=true");
+  assert(mdWithLinks.includes("Booking Link"), "Booking Link column present when showLinks=true");
+
+  const mdDe = generateMarkdownReport(mockData, { language: "de", showLinks: true });
   assert(mdDe.includes("# ✈️ Flugpreise:"), "German report title");
   assert(mdDe.includes("Freitag"), "German day of week");
   assert(mdDe.includes("Wochentags-Preisanalyse"), "German day of week analysis title");
   assert(mdDe.includes("Günstigstes Ticket:"), "German cheapest ticket header");
+  assert(mdDe.includes("Auf Google Flights buchen"), "German Google Flights link text");
+  assert(mdDe.includes("Bewertung"), "German Rating column header");
+  assert(mdDe.includes("🟢 Top-Angebot"), "German Great Deal rating badge");
+  assert(mdDe.includes("🔴 Teuer"), "German Expensive rating badge");
 
-  const mdEs = generateMarkdownReport(mockData, { language: "es" });
+  const mdEs = generateMarkdownReport(mockData, { language: "es", showLinks: false });
   assert(mdEs.includes("# ✈️ Precios de Vuelos:"), "Spanish report title");
   assert(mdEs.includes("Viernes"), "Spanish day of week");
   assert(mdEs.includes("Billete más barato:"), "Spanish cheapest ticket header");
+  assert(mdEs.includes("Valoración"), "Spanish Rating column header");
+  assert(mdEs.includes("🟢 Gran Oferta"), "Spanish Great Deal rating badge");
+
+  const mdFr = generateMarkdownReport(mockData, { language: "fr", showLinks: false });
+  assert(mdFr.includes("Évaluation"), "French Rating column header");
+  assert(mdFr.includes("🟢 Super Offre"), "French Great Deal rating badge");
 
   console.log(`\n========================================`);
   console.log(`Test Results: ${passed} Passed, ${failed} Failed`);

@@ -35,6 +35,8 @@ program
   .option("--direct", "Direct flights only", false)
   .option("-c, --currency <code>", "Currency code (default: EUR)", "EUR")
   .option("--lang, --language <code>", "Output language code (e.g. en, de, es, fr, it, pt, pl, nl, ru, uk)", "en")
+  .option("--links", "Include Google Flights booking links in the markdown output", false)
+  .option("--google-flights", "Include Google Flights booking links in the markdown output", false)
   .option("-o, --output <file>", "Save markdown output to a file")
   .option("--top <number>", "Number of top cheapest dates to highlight", "10")
   .option("--sort <field>", "Sort table by 'date' or 'price'", "date")
@@ -119,6 +121,11 @@ async function runInteractive() {
     default: false
   });
 
+  const showLinks = await confirm({
+    message: "Include Google Flights booking links in the output?",
+    default: false
+  });
+
   const saveFile = await confirm({
     message: "Save output to a markdown file?",
     default: false
@@ -140,6 +147,7 @@ async function runInteractive() {
     roundTrip,
     tripLength,
     directOnly,
+    showLinks,
     outputFile,
     currency: "EUR"
   };
@@ -155,6 +163,7 @@ async function main() {
     let directOnly = options.direct;
     let currency = options.currency || "EUR";
     let language = options.language || options.lang || "en";
+    let showLinks = Boolean(options.links || options.googleFlights);
     let outputFile = options.output;
     let isInteractive = options.interactive;
 
@@ -169,6 +178,7 @@ async function main() {
       roundTrip = answers.roundTrip;
       tripLength = answers.tripLength;
       directOnly = answers.directOnly;
+      showLinks = answers.showLinks;
       if (answers.outputFile) {
         outputFile = answers.outputFile;
       }
@@ -179,6 +189,7 @@ async function main() {
       console.log(chalk.yellow("\nUsage:"));
       console.log("  plane-prices <origin> <destination> [duration]");
       console.log("  plane-prices BER BCN 1m");
+      console.log("  plane-prices BER BCN 1m --google-flights");
       console.log("  plane-prices BER BCN 2m --language de");
       console.log("  plane-prices BER BCN 2m --round-trip -l 7");
       console.log("  plane-prices --interactive");
@@ -235,7 +246,7 @@ async function main() {
     const topN = parseInt(options.top, 10) || 10;
     const sortBy = options.sort === "price" ? "price" : "date";
 
-    const markdownOutput = generateMarkdownReport(results, { topN, sortBy, language });
+    const markdownOutput = generateMarkdownReport(results, { topN, sortBy, language, showLinks });
 
     // Save to file if requested
     if (outputFile) {
