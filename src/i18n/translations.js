@@ -1,5 +1,5 @@
 /**
- * Multi-language localization dictionary for Quick Plane Prices
+ * Multi-language localization dictionary for Terminal Flights
  */
 
 export const TRANSLATIONS = {

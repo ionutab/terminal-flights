@@ -1,5 +1,5 @@
 {
-  "name": "quick-plane-prices",
+  "name": "terminal-flights",
   "version": "1.0.0",
   "description": "CLI tool to scan flight prices for a duration and output Markdown reports",
   "type": "module",

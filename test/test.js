@@ -1,5 +1,5 @@
 /**
- * Automated test suite for Quick Plane Prices
+ * Automated test suite for Terminal Flights
  */
 
 import { searchFlightPrices } from "../src/api/flights.js";
@@ -9,7 +9,7 @@ import { generateMarkdownReport, calculateStatistics } from "../src/formatters/m
 import { getTranslations } from "../src/i18n/translations.js";
 
 async function runTests() {
-  console.log("🚀 Running Quick Plane Prices Test Suite...\n");
+  console.log("🚀 Running Terminal Flights Test Suite...\n");
   let passed = 0;
   let failed = 0;
 

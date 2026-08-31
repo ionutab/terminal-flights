@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Quick Plane Prices CLI
+ * Terminal Flights CLI
  * Fast command line tool to compare airplane ticket prices and generate Markdown reports.
  */
 
@@ -49,7 +49,7 @@ const options = program.opts();
 const args = program.args;
 
 async function runInteractive() {
-  console.log(chalk.bold.cyan("\n✈️  Quick Plane Prices — Route & Price Finder\n"));
+  console.log(chalk.bold.cyan("\n✈️  Terminal Flights — Route & Price Finder\n"));
 
   const originInput = await input({
     message: "Origin airport (IATA code or city, e.g. BER, London, JFK):",

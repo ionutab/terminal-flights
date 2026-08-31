@@ -1,4 +1,4 @@
-# ✈️ Quick Plane Prices
+# ✈️ Terminal Flights
 
 A fast and lightweight CLI tool to scan flight prices between two airports over a customizable duration window (`1m` for 1 month, `2m` for 2 months, `3m`, `1w`, `30d`, etc.) and output a clean Markdown report with the cheapest tickets, day of week, prices in EUR, multi-language support, and optional Google Flights direct booking links.
 
@@ -168,7 +168,7 @@ The generated Markdown output includes:
 ## 📁 Project Structure
 
 ```
-quick-plane-prices/
+terminal-flights/
 ├── bin/
 │   └── plane-prices.js       # CLI executable entry point
 ├── src/
